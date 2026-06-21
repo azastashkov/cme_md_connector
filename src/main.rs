@@ -21,6 +21,7 @@ LOAD TEST:
   --instruments <n>      number of synthetic instruments         [default: 4]
   --ring <slots>         ingest ring capacity                    [default: 16384]
   --seed <u64>           generator PRNG seed                     [default: 12877…]
+  --pcap <path>          replay a local CME pcap instead of generating
 
 DASHBOARD:
   --port <p>             dashboard HTTP port                     [default: 8080]
@@ -101,10 +102,30 @@ fn main() {
         seed: opts.get_or("seed", 0xC0FF_EE12_3456_789A_u64),
     };
 
+    // Optional replay of a locally-supplied real CME capture.
+    let replay = match opts.map.get("pcap") {
+        Some(path) => match cme_md_connector::loadgen::read_pcap_payloads(path) {
+            Ok(payloads) if !payloads.is_empty() => {
+                println!("Loaded {} UDP payload(s) from {path}.", payloads.len());
+                Some(std::sync::Arc::new(payloads))
+            }
+            Ok(_) => {
+                eprintln!("error: no UDP payloads found in {path}");
+                std::process::exit(1);
+            }
+            Err(e) => {
+                eprintln!("error: failed to read pcap {path}: {e}");
+                std::process::exit(1);
+            }
+        },
+        None => None,
+    };
+
     let cfg = RunConfig {
         pipeline,
         generator,
         rate: opts.get_or("rate", 200_000),
+        replay,
         duration: Duration::from_secs(opts.get_or("duration", 30)),
         port: opts.get_or("port", 8080),
         dashboard: !flags.iter().any(|f| f == "no-dashboard"),

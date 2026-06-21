@@ -181,6 +181,81 @@ impl Generator {
     }
 }
 
+/// Read CME packet payloads (UDP payloads) from a pcap / pcapng capture.
+///
+/// Strips Ethernet/IPv4/UDP (or raw IP) framing and returns the application
+/// payloads — each the 12-byte CME packet header + SBE messages — to be replayed
+/// through the identical decode path. For a locally-supplied, non-redistributed
+/// real CME sample.
+pub fn read_pcap_payloads(path: &str) -> std::io::Result<Vec<Vec<u8>>> {
+    use pcap_parser::{create_reader, PcapBlockOwned, PcapError};
+
+    let invalid = |msg: String| std::io::Error::new(std::io::ErrorKind::InvalidData, msg);
+    let file = std::fs::File::open(path)?;
+    let mut reader = create_reader(1 << 16, file).map_err(|e| invalid(format!("{e:?}")))?;
+    let mut out = Vec::new();
+
+    loop {
+        // Confine the borrow of `reader` (the block/error borrow its buffer) to
+        // this inner scope so `consume`/`refill` can take `&mut reader` after.
+        let mut consume_at = None;
+        let mut refill = false;
+        let mut stop = false;
+        let mut error = None;
+        match reader.next() {
+            Ok((offset, block)) => {
+                let frame: Option<&[u8]> = match &block {
+                    PcapBlockOwned::Legacy(b) => Some(b.data),
+                    PcapBlockOwned::NG(ng) => ng_frame(ng),
+                    PcapBlockOwned::LegacyHeader(_) => None,
+                };
+                if let Some(payload) = frame.and_then(extract_udp_payload) {
+                    out.push(payload);
+                }
+                consume_at = Some(offset);
+            }
+            Err(PcapError::Eof) => stop = true,
+            Err(PcapError::Incomplete(_)) => refill = true,
+            Err(e) => error = Some(format!("{e:?}")),
+        }
+
+        if let Some(msg) = error {
+            return Err(invalid(msg));
+        }
+        if stop {
+            break;
+        }
+        if let Some(offset) = consume_at {
+            reader.consume(offset);
+        }
+        if refill {
+            reader.refill().map_err(|e| invalid(format!("{e:?}")))?;
+        }
+    }
+    Ok(out)
+}
+
+fn ng_frame<'a>(block: &'a pcap_parser::pcapng::Block<'a>) -> Option<&'a [u8]> {
+    use pcap_parser::pcapng::Block;
+    match block {
+        Block::EnhancedPacket(epb) => Some(epb.data),
+        Block::SimplePacket(spb) => Some(spb.data),
+        _ => None,
+    }
+}
+
+/// Extract the UDP payload from a link-layer or raw-IP frame.
+fn extract_udp_payload(frame: &[u8]) -> Option<Vec<u8>> {
+    use etherparse::{SlicedPacket, TransportSlice};
+    let sliced = SlicedPacket::from_ethernet(frame)
+        .or_else(|_| SlicedPacket::from_ip(frame))
+        .ok()?;
+    match sliced.transport {
+        Some(TransportSlice::Udp(udp)) => Some(udp.payload().to_vec()),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -248,6 +323,56 @@ mod tests {
         let bid = bbo.bid_px_raw.expect("bid present");
         let offer = bbo.offer_px_raw.expect("offer present");
         assert!(bid < offer, "bid {bid} must be below offer {offer}");
+    }
+
+    fn write_legacy_pcap(frames: &[Vec<u8>]) -> std::path::PathBuf {
+        let mut buf = Vec::new();
+        // Global header (little-endian), LINKTYPE_ETHERNET (1).
+        buf.extend_from_slice(&0xa1b2c3d4u32.to_le_bytes());
+        buf.extend_from_slice(&2u16.to_le_bytes());
+        buf.extend_from_slice(&4u16.to_le_bytes());
+        buf.extend_from_slice(&0i32.to_le_bytes());
+        buf.extend_from_slice(&0u32.to_le_bytes());
+        buf.extend_from_slice(&65535u32.to_le_bytes());
+        buf.extend_from_slice(&1u32.to_le_bytes());
+        for f in frames {
+            buf.extend_from_slice(&0u32.to_le_bytes()); // ts_sec
+            buf.extend_from_slice(&0u32.to_le_bytes()); // ts_usec
+            buf.extend_from_slice(&(f.len() as u32).to_le_bytes()); // incl_len
+            buf.extend_from_slice(&(f.len() as u32).to_le_bytes()); // orig_len
+            buf.extend_from_slice(f);
+        }
+        let path = std::env::temp_dir().join(format!("cme_test_{}.pcap", frames.len() * 7 + 3));
+        std::fs::write(&path, &buf).unwrap();
+        path
+    }
+
+    fn ethernet_udp_frame(payload: &[u8]) -> Vec<u8> {
+        let builder = etherparse::PacketBuilder::ethernet2([1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12])
+            .ipv4([10, 0, 0, 1], [224, 0, 28, 64], 16)
+            .udp(40000, 14310);
+        let mut frame = Vec::new();
+        builder.write(&mut frame, payload).unwrap();
+        frame
+    }
+
+    #[test]
+    fn pcap_replay_round_trips_a_generated_packet() {
+        let mut g = Generator::new(cfg(vec![1]));
+        let original = g.next_packet();
+        let frame = ethernet_udp_frame(&original);
+        let path = write_legacy_pcap(&[frame]);
+
+        let payloads = read_pcap_payloads(path.to_str().unwrap()).expect("read pcap");
+        std::fs::remove_file(&path).ok();
+
+        assert_eq!(payloads.len(), 1);
+        assert_eq!(payloads[0], original, "UDP payload must equal the CME packet");
+
+        // And it decodes through the production path.
+        let mut ob = OrderBook::with_instruments(&[1]);
+        let bbo = apply_packet(&mut ob, &payloads[0]).expect("decodes");
+        assert!(bbo.bid_px_raw.is_some() && bbo.offer_px_raw.is_some());
     }
 
     #[test]

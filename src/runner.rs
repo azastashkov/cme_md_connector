@@ -51,6 +51,8 @@ pub struct RunConfig {
     pub generator: GeneratorConfig,
     /// Open-loop emission rate in packets/sec; 0 = unthrottled (max).
     pub rate: u64,
+    /// Optional captured payloads to replay (looped) instead of generating.
+    pub replay: Option<Arc<Vec<Vec<u8>>>>,
     pub duration: Duration,
     pub port: u16,
     pub dashboard: bool,
@@ -89,6 +91,7 @@ pub fn run(cfg: RunConfig) -> RunResult {
     let gen_thread = {
         let shutdown = Arc::clone(&shutdown);
         let mut generator = Generator::new(cfg.generator.clone());
+        let replay = cfg.replay.clone();
         let rate = cfg.rate;
         thread::spawn(move || {
             let interval_ns = if rate > 0 { 1_000_000_000 / rate } else { 0 };
@@ -99,8 +102,14 @@ pub fn run(cfg: RunConfig) -> RunResult {
                     let target = start + Duration::from_nanos(i.saturating_mul(interval_ns));
                     pace_until(target, &shutdown);
                 }
-                let packet = generator.next_packet();
-                if producer.push(PacketBuf::from_slice(&packet)).is_err() {
+                // Replay captured payloads (looped) or generate synthetically.
+                let buf = match &replay {
+                    Some(payloads) if !payloads.is_empty() => {
+                        PacketBuf::from_slice(&payloads[(i as usize) % payloads.len()])
+                    }
+                    _ => PacketBuf::from_slice(&generator.next_packet()),
+                };
+                if producer.push(buf).is_err() {
                     drop_sink.inc_drop(); // ring full: consumer fell behind
                 }
                 i = i.wrapping_add(1);
@@ -253,6 +262,22 @@ pub fn calibrate(cfg: &RunConfig, iterations: u64) -> Vec<(String, f64)> {
     let mut generator = Generator::new(cfg.generator.clone());
     let packets: Vec<Vec<u8>> = (0..iterations).map(|_| generator.next_packet()).collect();
 
+    // Decode-only mean: parse the packet and decode all entries.
+    let start = timer.raw();
+    let mut sink_count = 0u64;
+    for p in &packets {
+        if let Some((_, body)) = crate::mdp3::packet::PacketHeader::parse(p) {
+            for m in crate::mdp3::header::messages(body) {
+                if let Some(r) = crate::mdp3::book_refresh::IncrementalRefresh::decode(m.header, m.body) {
+                    sink_count += r.entries().count() as u64;
+                }
+            }
+        }
+    }
+    std::hint::black_box(sink_count);
+    let decode_ns = timer.delta_ns(start, timer.raw()) as f64 / iterations as f64;
+    rows.push(("decode only".to_string(), decode_ns));
+
     // Whole-pipeline mean: process each packet once.
     let (sink, _rep) = new_metrics(0, timer.resolution_ns());
     let mut pipeline = Pipeline::new(cfg.pipeline.clone(), sink, timer.clone());
@@ -261,11 +286,8 @@ pub fn calibrate(cfg: &RunConfig, iterations: u64) -> Vec<(String, f64)> {
         let t0 = timer.raw();
         pipeline.process(p, t0);
     }
-    let elapsed = timer.delta_ns(start, timer.raw());
-    rows.push((
-        "full process (decode→order)".to_string(),
-        elapsed as f64 / iterations as f64,
-    ));
+    let full_ns = timer.delta_ns(start, timer.raw()) as f64 / iterations as f64;
+    rows.push(("full process (decode→order)".to_string(), full_ns));
 
     rows
 }
@@ -285,6 +307,7 @@ mod tests {
                 ..Default::default()
             },
             rate: 100_000,
+            replay: None,
             duration: Duration::from_millis(300),
             port: 0,
             dashboard,
