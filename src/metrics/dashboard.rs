@@ -29,7 +29,8 @@ fn stages_json(stages: &[(&'static str, StageStat)]) -> String {
 pub fn to_json(snap: &MetricsSnapshot) -> String {
     format!(
         "{{\"throughput_pps\":{:.3},\"ticks\":{},\"orders\":{},\"rejects\":{},\"drops\":{},\
-\"timer_resolution_ns\":{},\"total_pnl\":{:.4},\"net_position\":{},\"interval\":{},\"cumulative\":{}}}",
+\"timer_resolution_ns\":{},\"total_pnl\":{:.4},\"net_position\":{},\"drawdown_pct\":{:.4},\
+\"interval\":{},\"cumulative\":{}}}",
         snap.throughput_pps,
         snap.ticks,
         snap.orders,
@@ -38,6 +39,7 @@ pub fn to_json(snap: &MetricsSnapshot) -> String {
         snap.timer_resolution_ns,
         snap.total_pnl,
         snap.net_position,
+        snap.drawdown_pct,
         stages_json(&snap.interval),
         stages_json(&snap.cumulative),
     )
@@ -109,6 +111,7 @@ mod tests {
             timer_resolution_ns: 42,
             total_pnl: -123.45,
             net_position: -7,
+            drawdown_pct: -12.5,
             ..Default::default()
         }
     }
@@ -121,16 +124,17 @@ mod tests {
         assert!(json.contains("\"timer_resolution_ns\":42"));
         assert!(json.contains("\"total_pnl\":-123.4500"));
         assert!(json.contains("\"net_position\":-7"));
+        assert!(json.contains("\"drawdown_pct\":-12.5000"));
         assert!(json.contains("\"p99\":300"));
         assert!(json.contains("\"interval\""));
         assert!(json.contains("\"cumulative\""));
     }
 
     #[test]
-    fn index_html_includes_pnl_and_position_charts() {
-        // Guards against the embedded asset drifting away from the PnL and
-        // position graphs (there is no JS test harness, so assert the canvases
-        // and the shared signed renderer are present).
+    fn index_html_includes_signed_and_drawdown_charts() {
+        // Guards against the embedded asset drifting away from the PnL,
+        // position, and drawdown graphs (there is no JS test harness, so assert
+        // the canvases and their renderers are present).
         assert!(
             INDEX_HTML.contains("id=\"c_pnl\""),
             "dashboard.html is missing the PnL chart canvas"
@@ -140,8 +144,16 @@ mod tests {
             "dashboard.html is missing the position chart canvas"
         );
         assert!(
+            INDEX_HTML.contains("id=\"c_dd\""),
+            "dashboard.html is missing the drawdown chart canvas"
+        );
+        assert!(
             INDEX_HTML.contains("drawSigned"),
             "dashboard.html is missing the shared drawSigned renderer"
+        );
+        assert!(
+            INDEX_HTML.contains("drawUnderwater"),
+            "dashboard.html is missing the drawUnderwater renderer"
         );
     }
 

@@ -58,6 +58,11 @@
       <div class="legend"><span><i style="background:#3fb950"></i>long</span><span><i style="background:#f85149"></i>short</span><span><i style="background:#8b949e"></i>flat</span></div>
     </div>
     <div class="card">
+      <h3>drawdown (% of peak)</h3>
+      <canvas id="c_dd"></canvas>
+      <div class="legend"><span><i style="background:#8b949e"></i>high-water (0%)</span><span><i style="background:#f85149"></i>underwater</span></div>
+    </div>
+    <div class="card">
       <h3>tick → order (total tick-to-trade), ns</h3>
       <canvas id="c_order"></canvas>
       <div class="legend"><span><i style="background:#3fb950"></i>p50</span><span><i style="background:#58a6ff"></i>p95</span><span><i style="background:#f85149"></i>p99</span></div>
@@ -81,7 +86,7 @@
 
 <script>
 const MAXPTS = 120;
-const hist = { order: {p50:[],p95:[],p99:[]}, signal: {p50:[],p95:[],p99:[]}, tput: [], pnl: [], pos: [] };
+const hist = { order: {p50:[],p95:[],p99:[]}, signal: {p50:[],p95:[],p99:[]}, tput: [], pnl: [], pos: [], dd: [] };
 let lastBars = [];
 
 function fmt(n) {
@@ -174,6 +179,52 @@ function drawSigned(id, series, posColor, negColor, digits) {
   ctx.fillText(lo.toFixed(0), w - 4*devicePixelRatio, h - 4*devicePixelRatio);
 }
 
+// Underwater curve for drawdown: values are <= 0, and 0 (the high-water mark)
+// is the fixed reference, so the top is anchored at 0 while the bottom
+// autoscales to the worst drawdown in the window. Fills the area below the
+// high-water line so depth-underwater reads at a glance.
+function drawUnderwater(id, series, color) {
+  const cv = document.getElementById(id), ctx = cv.getContext('2d');
+  const w = cv.width = cv.clientWidth * devicePixelRatio, h = cv.height = 160 * devicePixelRatio;
+  ctx.clearRect(0,0,w,h);
+  // Top fixed at 0; bottom = worst (most negative) drawdown in the window.
+  let lo = 0;
+  for (const v of series) lo = Math.min(lo, v);
+  if (lo === 0) lo = -1; // never underwater: give a small range so 0 sits at top
+  const hi = 0;
+  const pad = 8 * devicePixelRatio;
+  const yOf = v => h - pad - ((v - lo) / (hi - lo)) * (h - 2 * pad);
+  // background gridlines
+  ctx.strokeStyle = '#21262d'; ctx.lineWidth = 1;
+  for (let g=0; g<=4; g++){ const y=h*g/4; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+  const yZero = yOf(0);
+  if (series.length) {
+    // filled area between the high-water line and the curve
+    ctx.beginPath();
+    ctx.moveTo(0, yZero);
+    series.forEach((v,i) => ctx.lineTo(w*i/(MAXPTS-1), yOf(v)));
+    ctx.lineTo(w*(series.length-1)/(MAXPTS-1), yZero);
+    ctx.closePath();
+    ctx.fillStyle = color + '40'; // translucent
+    ctx.fill();
+    // solid stroke on top of the curve
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5*devicePixelRatio; ctx.beginPath();
+    series.forEach((v,i) => { const x=w*i/(MAXPTS-1), y=yOf(v); i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+    ctx.stroke();
+  }
+  // dashed high-water line at 0
+  ctx.strokeStyle = '#8b949e'; ctx.lineWidth = 1*devicePixelRatio;
+  ctx.setLineDash([4*devicePixelRatio, 4*devicePixelRatio]);
+  ctx.beginPath(); ctx.moveTo(0, yZero); ctx.lineTo(w, yZero); ctx.stroke();
+  ctx.setLineDash([]);
+  // current drawdown (top-left) and worst-in-window (bottom-right)
+  const cur = series.length ? series[series.length-1] : 0;
+  ctx.fillStyle = color; ctx.font = (11*devicePixelRatio)+'px monospace'; ctx.textAlign = 'left';
+  ctx.fillText(cur.toFixed(2) + '%', 4*devicePixelRatio, 14*devicePixelRatio);
+  ctx.fillStyle = '#8b949e'; ctx.font = (10*devicePixelRatio)+'px monospace'; ctx.textAlign = 'right';
+  ctx.fillText(lo.toFixed(2) + '%', w - 4*devicePixelRatio, h - 4*devicePixelRatio);
+}
+
 function statCard(k, v, cls) { return `<div class="stat"><div class="k">${k}</div><div class="v ${cls||''}">${v}</div></div>`; }
 
 async function tick() {
@@ -211,10 +262,12 @@ async function tick() {
   pushCap(hist.tput, snap.throughput_pps);
   pushCap(hist.pnl, snap.total_pnl);
   pushCap(hist.pos, snap.net_position);
+  pushCap(hist.dd, snap.drawdown_pct);
   lastBars = iv;
 
   drawSigned('c_pnl', hist.pnl, '#3fb950', '#f85149', 2);
   drawSigned('c_pos', hist.pos, '#3fb950', '#f85149', 0);
+  drawUnderwater('c_dd', hist.dd, '#f85149');
   drawLines('c_order', [hist.order.p50, hist.order.p95, hist.order.p99], ['#3fb950','#58a6ff','#f85149']);
   drawLines('c_signal', [hist.signal.p50, hist.signal.p95, hist.signal.p99], ['#3fb950','#58a6ff','#f85149']);
   drawLines('c_tput', [hist.tput], ['#d29922']);
