@@ -29,7 +29,7 @@ fn stages_json(stages: &[(&'static str, StageStat)]) -> String {
 pub fn to_json(snap: &MetricsSnapshot) -> String {
     format!(
         "{{\"throughput_pps\":{:.3},\"ticks\":{},\"orders\":{},\"rejects\":{},\"drops\":{},\
-\"timer_resolution_ns\":{},\"total_pnl\":{:.4},\"interval\":{},\"cumulative\":{}}}",
+\"timer_resolution_ns\":{},\"total_pnl\":{:.4},\"net_position\":{},\"interval\":{},\"cumulative\":{}}}",
         snap.throughput_pps,
         snap.ticks,
         snap.orders,
@@ -37,6 +37,7 @@ pub fn to_json(snap: &MetricsSnapshot) -> String {
         snap.drops,
         snap.timer_resolution_ns,
         snap.total_pnl,
+        snap.net_position,
         stages_json(&snap.interval),
         stages_json(&snap.cumulative),
     )
@@ -107,6 +108,7 @@ mod tests {
             drops: 0,
             timer_resolution_ns: 42,
             total_pnl: -123.45,
+            net_position: -7,
             ..Default::default()
         }
     }
@@ -118,20 +120,29 @@ mod tests {
         assert!(json.contains("\"throughput_pps\":12345.678"));
         assert!(json.contains("\"timer_resolution_ns\":42"));
         assert!(json.contains("\"total_pnl\":-123.4500"));
+        assert!(json.contains("\"net_position\":-7"));
         assert!(json.contains("\"p99\":300"));
         assert!(json.contains("\"interval\""));
         assert!(json.contains("\"cumulative\""));
     }
 
     #[test]
-    fn index_html_includes_pnl_chart() {
-        // Guards against the embedded asset drifting away from the PnL graph
-        // (there is no JS test harness, so assert the canvas is present).
+    fn index_html_includes_pnl_and_position_charts() {
+        // Guards against the embedded asset drifting away from the PnL and
+        // position graphs (there is no JS test harness, so assert the canvases
+        // and the shared signed renderer are present).
         assert!(
             INDEX_HTML.contains("id=\"c_pnl\""),
             "dashboard.html is missing the PnL chart canvas"
         );
-        assert!(INDEX_HTML.contains("drawPnl"), "dashboard.html is missing drawPnl");
+        assert!(
+            INDEX_HTML.contains("id=\"c_pos\""),
+            "dashboard.html is missing the position chart canvas"
+        );
+        assert!(
+            INDEX_HTML.contains("drawSigned"),
+            "dashboard.html is missing the shared drawSigned renderer"
+        );
     }
 
     #[test]

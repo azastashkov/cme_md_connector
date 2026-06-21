@@ -7,7 +7,7 @@
 //! p50/p95/p99, and publishes an immutable [`MetricsSnapshot`] that the
 //! dashboard serves.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -141,6 +141,8 @@ struct Counters {
     orders: AtomicU64,
     rejects: AtomicU64,
     drops: AtomicU64,
+    /// Latest aggregate signed net position (a gauge, last-write-wins).
+    position: AtomicI64,
 }
 
 /// Hot-path handle for recording stage timings. Cheap to clone (Arc-backed).
@@ -164,6 +166,11 @@ impl MetricsSink {
     pub fn inc_order(&self) {
         self.counters.orders.fetch_add(1, Ordering::Relaxed);
     }
+    /// Publish the latest aggregate signed net position (a gauge).
+    #[inline]
+    pub fn set_position(&self, net: i64) {
+        self.counters.position.store(net, Ordering::Relaxed);
+    }
     #[inline]
     pub fn inc_reject(&self) {
         self.counters.rejects.fetch_add(1, Ordering::Relaxed);
@@ -186,6 +193,8 @@ pub struct MetricsSnapshot {
     pub drops: u64,
     pub timer_resolution_ns: u64,
     pub total_pnl: f64,
+    /// Aggregate signed net position across all instruments.
+    pub net_position: i64,
 }
 
 /// Off-hot-path aggregator: swaps interval histograms, accumulates a cumulative
@@ -229,6 +238,7 @@ impl Reporter {
             drops: self.counters.drops.load(Ordering::Relaxed),
             timer_resolution_ns: self.timer_resolution_ns,
             total_pnl,
+            net_position: self.counters.position.load(Ordering::Relaxed),
         }
     }
 
@@ -306,12 +316,14 @@ mod tests {
         sink.inc_order();
         sink.inc_reject();
         sink.inc_drop();
+        sink.set_position(-3);
         sink.record(&StageSample::default());
         let snap = rep.snapshot(0.0);
         assert_eq!(snap.orders, 2);
         assert_eq!(snap.rejects, 1);
         assert_eq!(snap.drops, 1);
         assert_eq!(snap.ticks, 1);
+        assert_eq!(snap.net_position, -3);
     }
 
     #[test]

@@ -53,6 +53,11 @@
       <div class="legend"><span><i style="background:#3fb950"></i>profit</span><span><i style="background:#f85149"></i>loss</span><span><i style="background:#8b949e"></i>zero</span></div>
     </div>
     <div class="card">
+      <h3>net position (contracts)</h3>
+      <canvas id="c_pos"></canvas>
+      <div class="legend"><span><i style="background:#3fb950"></i>long</span><span><i style="background:#f85149"></i>short</span><span><i style="background:#8b949e"></i>flat</span></div>
+    </div>
+    <div class="card">
       <h3>tick → order (total tick-to-trade), ns</h3>
       <canvas id="c_order"></canvas>
       <div class="legend"><span><i style="background:#3fb950"></i>p50</span><span><i style="background:#58a6ff"></i>p95</span><span><i style="background:#f85149"></i>p99</span></div>
@@ -76,7 +81,7 @@
 
 <script>
 const MAXPTS = 120;
-const hist = { order: {p50:[],p95:[],p99:[]}, signal: {p50:[],p95:[],p99:[]}, tput: [], pnl: [] };
+const hist = { order: {p50:[],p95:[],p99:[]}, signal: {p50:[],p95:[],p99:[]}, tput: [], pnl: [], pos: [] };
 let lastBars = [];
 
 function fmt(n) {
@@ -126,9 +131,10 @@ function drawBars(id, stages) {
   ctx.fillText('p99 max ' + fmt(max) + 'ns', 4*devicePixelRatio, 12*devicePixelRatio);
 }
 
-// PnL is signed, so it needs a zero baseline and per-segment green/red coloring
-// rather than the unsigned drawLines scaling.
-function drawPnl(id, series) {
+// A signed series (PnL, net position) needs a zero baseline and per-segment
+// green/red coloring rather than the unsigned drawLines scaling. `posColor`/
+// `negColor` paint above/below zero; `digits` controls the current-value label.
+function drawSigned(id, series, posColor, negColor, digits) {
   const cv = document.getElementById(id), ctx = cv.getContext('2d');
   const w = cv.width = cv.clientWidth * devicePixelRatio, h = cv.height = 160 * devicePixelRatio;
   ctx.clearRect(0,0,w,h);
@@ -151,13 +157,13 @@ function drawPnl(id, series) {
   ctx.lineWidth = 1.5*devicePixelRatio;
   for (let i=1; i<series.length; i++) {
     const x0 = w*(i-1)/(MAXPTS-1), x1 = w*i/(MAXPTS-1);
-    ctx.strokeStyle = series[i] >= 0 ? '#3fb950' : '#f85149';
+    ctx.strokeStyle = series[i] >= 0 ? posColor : negColor;
     ctx.beginPath(); ctx.moveTo(x0, yOf(series[i-1])); ctx.lineTo(x1, yOf(series[i])); ctx.stroke();
   }
   // current value (top-left) and hi/lo bounds (right edge)
   const cur = series.length ? series[series.length-1] : 0;
-  ctx.fillStyle = cur < 0 ? '#f85149' : '#3fb950'; ctx.font = (11*devicePixelRatio)+'px monospace'; ctx.textAlign = 'left';
-  ctx.fillText(cur.toFixed(2), 4*devicePixelRatio, 14*devicePixelRatio);
+  ctx.fillStyle = cur < 0 ? negColor : posColor; ctx.font = (11*devicePixelRatio)+'px monospace'; ctx.textAlign = 'left';
+  ctx.fillText(cur.toFixed(digits), 4*devicePixelRatio, 14*devicePixelRatio);
   ctx.fillStyle = '#8b949e'; ctx.font = (10*devicePixelRatio)+'px monospace'; ctx.textAlign = 'right';
   ctx.fillText(hi.toFixed(0), w - 4*devicePixelRatio, 12*devicePixelRatio);
   ctx.fillText(lo.toFixed(0), w - 4*devicePixelRatio, h - 4*devicePixelRatio);
@@ -178,6 +184,7 @@ async function tick() {
   const order = get(iv, 'tick_to_order'), sig = get(iv, 'tick_to_signal');
 
   const pnlCls = snap.total_pnl < 0 ? 'neg' : 'pos';
+  const posCls = snap.net_position < 0 ? 'neg' : 'pos';
   document.getElementById('stats').innerHTML =
     statCard('throughput', fmt(snap.throughput_pps)+'/s') +
     statCard('ticks', fmt(snap.ticks)) +
@@ -185,6 +192,7 @@ async function tick() {
     statCard('rejects', fmt(snap.rejects)) +
     statCard('ring drops', fmt(snap.drops)) +
     statCard('total pnl', snap.total_pnl.toFixed(2), pnlCls) +
+    statCard('net position', snap.net_position, posCls) +
     statCard('tick→order p99', fmt(order.p99)+' ns') +
     statCard('tick→signal p50', fmt(sig.p50)+' ns');
 
@@ -197,9 +205,11 @@ async function tick() {
   pushCap(hist.signal.p50, sig.p50); pushCap(hist.signal.p95, sig.p95); pushCap(hist.signal.p99, sig.p99);
   pushCap(hist.tput, snap.throughput_pps);
   pushCap(hist.pnl, snap.total_pnl);
+  pushCap(hist.pos, snap.net_position);
   lastBars = iv;
 
-  drawPnl('c_pnl', hist.pnl);
+  drawSigned('c_pnl', hist.pnl, '#3fb950', '#f85149', 2);
+  drawSigned('c_pos', hist.pos, '#3fb950', '#f85149', 0);
   drawLines('c_order', [hist.order.p50, hist.order.p95, hist.order.p99], ['#3fb950','#58a6ff','#f85149']);
   drawLines('c_signal', [hist.signal.p50, hist.signal.p95, hist.signal.p99], ['#3fb950','#58a6ff','#f85149']);
   drawLines('c_tput', [hist.tput], ['#d29922']);

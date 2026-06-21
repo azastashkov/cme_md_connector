@@ -188,6 +188,11 @@ impl RiskManager {
         self.positions.get(&instrument).map_or(0, |p| p.net)
     }
 
+    /// Aggregate signed net position across all instruments (long minus short).
+    pub fn net_position_total(&self) -> i64 {
+        self.positions.values().map(|p| p.net).sum()
+    }
+
     /// Total realized + unrealized PnL across all instruments.
     pub fn total_pnl(&self) -> f64 {
         self.positions.values().map(|p| p.pnl()).sum()
@@ -266,6 +271,15 @@ mod tests {
         m.on_fill(1, OrderSide::Buy, 5, f64_to_price9(100.0));
         assert_eq!(m.net_position(1), 5);
         assert_eq!(m.check(&order(OrderSide::Sell, 2, 100.0), 100.0), Ok(()));
+    }
+
+    #[test]
+    fn net_position_total_sums_with_sign_across_instruments() {
+        let mut m = RiskManager::new(RiskConfig::default(), &[(1, 1.0), (2, 1.0)]);
+        m.on_fill(1, OrderSide::Buy, 7, f64_to_price9(100.0)); // long 7
+        m.on_fill(2, OrderSide::Sell, 4, f64_to_price9(100.0)); // short 4
+        // Long and short partially cancel: 7 + (-4) = 3.
+        assert_eq!(m.net_position_total(), 3);
     }
 
     #[test]
