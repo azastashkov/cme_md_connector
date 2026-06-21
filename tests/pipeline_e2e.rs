@@ -67,8 +67,20 @@ fn full_run_decodes_books_signals_and_routes_orders() {
         .find(|(n, _)| *n == "tick_to_order")
         .unwrap()
         .1;
+    // `decode` is recorded with plain `record`, so its sample count is exactly
+    // one per processed packet.
     assert_eq!(decode.count, snap.ticks);
-    assert_eq!(order.count, snap.orders);
+    // `tick_to_order` is an end-to-end stage recorded with `record_correct`
+    // (coordinated-omission correction), which backfills synthetic samples for
+    // any order whose latency exceeds the expected inter-arrival interval. So
+    // the histogram count is >= the authoritative order counter, not equal to
+    // it: every order is represented, and stalled order-ticks add extra samples.
+    assert!(
+        order.count >= snap.orders,
+        "tick_to_order count {} should cover every order {}",
+        order.count,
+        snap.orders
+    );
     // tick-to-order is the sum of stages, so it is at least as large as decode.
     assert!(order.p50 >= decode.p50);
 }
