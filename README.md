@@ -27,13 +27,16 @@ feature-gated for Linux and **off by default**.
 ## Quick start
 
 ```bash
-cargo test                 # 73 tests
+cargo test                 # 76 tests
 cargo run --release -- --duration 30 --instruments 4 --rate 200000
 # then open  http://127.0.0.1:8080/
 ```
 
 The terminal prints a final per-stage percentile report; the dashboard shows the
-same metrics live, refreshing each second.
+same metrics live, refreshing each second. Alongside the per-stage p50/p95/p99
+numbers it plots live time-series charts: **total PnL** and **net position**
+(both signed, zero-baselined and autoscaled), **tick→order** and **tick→signal**
+latency, **throughput** (packets/s), and a **per-stage p99** bar chart.
 
 ### Other modes
 
