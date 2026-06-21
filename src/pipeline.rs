@@ -16,7 +16,7 @@ use crate::orderbook::{Bbo, OrderBook};
 use crate::risk::{OrderRequest, RiskConfig, RiskManager};
 use crate::signal::{SignalConfig, SignalEngine};
 use crate::timing::Timer;
-use crate::{InstrumentId, OrderSide};
+use crate::InstrumentId;
 
 /// Max entries decoded from a single packet before overflow is dropped.
 const MAX_ENTRIES_PER_PACKET: usize = 64;
