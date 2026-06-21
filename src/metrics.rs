@@ -195,8 +195,6 @@ pub struct MetricsSnapshot {
     pub total_pnl: f64,
     /// Aggregate signed net position across all instruments.
     pub net_position: i64,
-    /// Drawdown from the running PnL peak, as a percent of that peak (<= 0).
-    pub drawdown_pct: f64,
 }
 
 /// Off-hot-path aggregator: swaps interval histograms, accumulates a cumulative
@@ -208,8 +206,6 @@ pub struct Reporter {
     timer_resolution_ns: u64,
     last_ticks: u64,
     last_instant: Instant,
-    /// Running high-water mark of total PnL, for drawdown.
-    peak_pnl: f64,
 }
 
 impl Reporter {
@@ -232,15 +228,6 @@ impl Reporter {
         self.last_ticks = ticks;
         self.last_instant = now;
 
-        // Drawdown from the high-water mark, as a percent of the peak. Only
-        // meaningful once PnL has been positive; <= 0 since total_pnl <= peak.
-        self.peak_pnl = self.peak_pnl.max(total_pnl);
-        let drawdown_pct = if self.peak_pnl > 0.0 {
-            (total_pnl - self.peak_pnl) / self.peak_pnl * 100.0
-        } else {
-            0.0
-        };
-
         MetricsSnapshot {
             interval: interval.stats(),
             cumulative: self.cumulative.stats(),
@@ -252,7 +239,6 @@ impl Reporter {
             timer_resolution_ns: self.timer_resolution_ns,
             total_pnl,
             net_position: self.counters.position.load(Ordering::Relaxed),
-            drawdown_pct,
         }
     }
 
@@ -281,7 +267,6 @@ pub fn new_metrics(expected_interval_ns: u64, timer_resolution_ns: u64) -> (Metr
         timer_resolution_ns,
         last_ticks: 0,
         last_instant: Instant::now(),
-        peak_pnl: f64::NEG_INFINITY,
     };
     (sink, reporter)
 }
@@ -339,19 +324,6 @@ mod tests {
         assert_eq!(snap.drops, 1);
         assert_eq!(snap.ticks, 1);
         assert_eq!(snap.net_position, -3);
-    }
-
-    #[test]
-    fn drawdown_tracks_decline_from_the_running_peak() {
-        let (_sink, mut rep) = new_metrics(1000, 42);
-        // Non-positive peak so far -> drawdown is defined as 0.
-        assert_eq!(rep.snapshot(-5.0).drawdown_pct, 0.0);
-        // New high-water mark -> at peak, no drawdown.
-        assert_eq!(rep.snapshot(100.0).drawdown_pct, 0.0);
-        // Falls to 80 against a peak of 100 -> (80-100)/100*100 = -20%.
-        assert!((rep.snapshot(80.0).drawdown_pct - (-20.0)).abs() < 1e-9);
-        // Recovering to a new high resets the drawdown to 0.
-        assert_eq!(rep.snapshot(120.0).drawdown_pct, 0.0);
     }
 
     #[test]
