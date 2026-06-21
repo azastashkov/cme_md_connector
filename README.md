@@ -24,6 +24,13 @@ feature-gated for Linux and **off by default**.
    dashboard thread: tiny_http serves the UI + /metrics.json
 ```
 
+## Architecture
+
+![Architecture diagram](docs/architecture.svg)
+
+The same four-thread view as an editable [draw.io source](docs/architecture.drawio)
+(open at [app.diagrams.net](https://app.diagrams.net/)).
+
 ## Quick start
 
 ```bash
