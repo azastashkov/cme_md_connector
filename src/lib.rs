@@ -6,7 +6,9 @@
 //!
 //! See `docs`/README for the architecture and the macOS measurement caveats.
 
+pub mod loadgen;
 pub mod mdp3;
+pub mod orderbook;
 
 /// CME `SecurityID` — identifies one instrument's book.
 pub type InstrumentId = i32;

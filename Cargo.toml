@@ -15,6 +15,15 @@ path = "src/main.rs"
 
 [dependencies]
 zerocopy = { version = "0.8", features = ["derive"] }
+arrayvec = "0.7"           # fixed-depth book levels, no hot-path allocation
+hdrhistogram = "7"         # per-stage tail-latency engine
+quanta = "0.12"            # portable monotonic clock (Apple-Silicon default)
+rtrb = "0.3"               # wait-free SPSC ring (generator -> hot consumer)
+arc-swap = "1"             # lock-free metrics-snapshot publish to the dashboard
+tiny_http = "0.12"         # built-in dashboard HTTP server (own thread)
+thiserror = "2"            # typed risk reject reasons
+pcap-parser = "0.16"       # optional replay of a locally-supplied real CME pcap
+etherparse = "0.16"        # strip Ethernet/IPv4/UDP from replayed pcap frames
 
 [features]
 default = []
