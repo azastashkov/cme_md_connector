@@ -36,7 +36,7 @@
         <mxCell id="laneHot" value="Hot consumer thread  (inline · zero-copy · allocation-free · busy-spin)" style="swimlane;startSize=30;horizontal=1;rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;verticalAlign=top;" vertex="1" parent="1">
           <mxGeometry x="490" y="90" width="360" height="700" as="geometry" />
         </mxCell>
-        <mxCell id="pop" value="pop · stamp t0&#10;(ingest hand-off excluded)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="laneHot">
+        <mxCell id="s_pop" value="pop · stamp t0&#10;(ingest hand-off excluded)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="laneHot">
           <mxGeometry x="40" y="50" width="200" height="48" as="geometry" />
         </mxCell>
         <mxCell id="decode" value="decode  →  t1&#10;header + SBE framing + MDIncrementalRefreshBook" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="laneHot">
@@ -82,9 +82,9 @@
         <mxCell id="e_ou_enc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6c8ebf;" edge="1" parent="1" source="ou" target="encode"><mxGeometry relative="1" as="geometry" /></mxCell>
         <mxCell id="e_enc_ring" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6c8ebf;" edge="1" parent="1" source="encode" target="ring"><mxGeometry relative="1" as="geometry" /></mxCell>
         <mxCell id="e_pcap_ring" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="pcap" target="ring"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_ring_pop" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#9673a6;strokeWidth=2;" edge="1" parent="1" source="ring" target="pop"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_ring_pop" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#9673a6;strokeWidth=2;" edge="1" parent="1" source="ring" target="s_pop"><mxGeometry relative="1" as="geometry" /></mxCell>
 
-        <mxCell id="e_pop_dec" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="pop" target="decode"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_pop_dec" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="s_pop" target="decode"><mxGeometry relative="1" as="geometry" /></mxCell>
         <mxCell id="e_dec_book" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="decode" target="book"><mxGeometry relative="1" as="geometry" /></mxCell>
         <mxCell id="e_book_sig" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="book" target="signal"><mxGeometry relative="1" as="geometry" /></mxCell>
         <mxCell id="e_sig_risk" value="signal?" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;fontSize=10;" edge="1" parent="1" source="signal" target="risk"><mxGeometry relative="1" as="geometry" /></mxCell>
