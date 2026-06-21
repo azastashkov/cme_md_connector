@@ -1,0 +1,4 @@
+# Optimize for the host CPU. The connector is a single-host demo; the produced
+# binary is not meant to be portable across machines.
+[build]
+rustflags = ["-C", "target-cpu=native"]

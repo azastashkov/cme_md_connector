@@ -1,0 +1,44 @@
+[package]
+name = "cme_md_connector"
+version = "0.1.0"
+edition = "2021"
+description = "HFT CME (MDP 3.0 / SBE) market-data connector + load test with a built-in latency dashboard"
+license = "MIT OR Apache-2.0"
+
+[lib]
+name = "cme_md_connector"
+path = "src/lib.rs"
+
+[[bin]]
+name = "connector"
+path = "src/main.rs"
+
+[dependencies]
+zerocopy = { version = "0.8", features = ["derive"] }
+arrayvec = "0.7"           # fixed-depth book levels, no hot-path allocation
+hdrhistogram = "7"         # per-stage tail-latency engine
+quanta = "0.12"            # portable monotonic clock (Apple-Silicon default)
+rtrb = "0.3"               # wait-free SPSC ring (generator -> hot consumer)
+arc-swap = "1"             # lock-free metrics-snapshot publish to the dashboard
+tiny_http = "0.12"         # built-in dashboard HTTP server (own thread)
+thiserror = "2"            # typed risk reject reasons
+pcap-parser = "0.16"       # optional replay of a locally-supplied real CME pcap
+etherparse = "0.16"        # strip Ethernet/IPv4/UDP from replayed pcap frames
+
+[features]
+default = []
+# Linux-x86-only fast path: TSC (rdtscp/minstant) timing, hard core pinning, huge pages.
+linux-x86-fastpath = []
+# Real thread-to-core pinning (Linux); a logged no-op on macOS/Apple Silicon.
+pin-threads = []
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+debug = false
+
+# The test profile keeps unwinding (panic=abort only applies to release/bin).
+[profile.test]
+opt-level = 1
