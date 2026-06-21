@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>CME MD Connector — Latency Dashboard</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0d1117; color: #c9d1d9; font: 13px/1.5 -apple-system, Menlo, monospace; }
+  header { padding: 14px 20px; border-bottom: 1px solid #21262d; display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: 16px; margin: 0; color: #58a6ff; }
+  .floor { color: #d29922; font-size: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; padding: 14px 20px; }
+  .stat { background: #161b22; border: 1px solid #21262d; border-radius: 6px; padding: 10px 12px; }
+  .stat .k { color: #8b949e; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  .stat .v { font-size: 20px; font-weight: 600; color: #e6edf3; }
+  .neg { color: #f85149; } .pos { color: #3fb950; }
+  main { padding: 0 20px 30px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { text-align: right; padding: 6px 10px; border-bottom: 1px solid #21262d; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: #8b949e; font-weight: 600; font-size: 11px; text-transform: uppercase; }
+  td.stage { color: #79c0ff; }
+  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; margin-top: 18px; }
+  .card { background: #161b22; border: 1px solid #21262d; border-radius: 6px; padding: 12px; }
+  .card h3 { margin: 0 0 8px; font-size: 13px; color: #c9d1d9; }
+  canvas { width: 100%; height: 160px; display: block; }
+  .legend { display: flex; gap: 14px; margin-top: 6px; font-size: 11px; color: #8b949e; }
+  .legend i { display: inline-block; width: 10px; height: 3px; margin-right: 5px; vertical-align: middle; }
+  .disconnected { color: #f85149; }
+</style>
+</head>
+<body>
+<header>
+  <h1>CME MD Connector</h1>
+  <span id="status">connecting…</span>
+  <span class="floor" id="floor"></span>
+</header>
+
+<div class="grid" id="stats"></div>
+
+<main>
+  <h2 style="font-size:14px;color:#8b949e;">Per-stage latency (current 1s interval, nanoseconds)</h2>
+  <table id="stageTable">
+    <thead><tr><th>stage</th><th>p50</th><th>p95</th><th>p99</th><th>max</th><th>count</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <div class="charts">
+    <div class="card">
+      <h3>tick → order (total tick-to-trade), ns</h3>
+      <canvas id="c_order"></canvas>
+      <div class="legend"><span><i style="background:#3fb950"></i>p50</span><span><i style="background:#58a6ff"></i>p95</span><span><i style="background:#f85149"></i>p99</span></div>
+    </div>
+    <div class="card">
+      <h3>tick → signal (per-tick total), ns</h3>
+      <canvas id="c_signal"></canvas>
+      <div class="legend"><span><i style="background:#3fb950"></i>p50</span><span><i style="background:#58a6ff"></i>p95</span><span><i style="background:#f85149"></i>p99</span></div>
+    </div>
+    <div class="card">
+      <h3>throughput (packets/s)</h3>
+      <canvas id="c_tput"></canvas>
+      <div class="legend"><span><i style="background:#d29922"></i>pps</span></div>
+    </div>
+    <div class="card">
+      <h3>per-stage p99 (ns)</h3>
+      <canvas id="c_bars"></canvas>
+    </div>
+  </div>
+</main>
+
+<script>
+const MAXPTS = 120;
+const hist = { order: {p50:[],p95:[],p99:[]}, signal: {p50:[],p95:[],p99:[]}, tput: [] };
+let lastBars = [];
+
+function fmt(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(2)+'G';
+  if (n >= 1e6) return (n/1e6).toFixed(2)+'M';
+  if (n >= 1e3) return (n/1e3).toFixed(2)+'k';
+  return Math.round(n).toString();
+}
+function pushCap(arr, v) { arr.push(v); if (arr.length > MAXPTS) arr.shift(); }
+
+function drawLines(id, series, colors) {
+  const cv = document.getElementById(id), ctx = cv.getContext('2d');
+  const w = cv.width = cv.clientWidth * devicePixelRatio, h = cv.height = 160 * devicePixelRatio;
+  ctx.clearRect(0,0,w,h);
+  let max = 1;
+  for (const s of series) for (const v of s) max = Math.max(max, v);
+  ctx.strokeStyle = '#21262d'; ctx.lineWidth = 1;
+  for (let g=0; g<=4; g++){ const y=h*g/4; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+  ctx.fillStyle = '#8b949e'; ctx.font = (10*devicePixelRatio)+'px monospace';
+  ctx.fillText(fmt(max), 4*devicePixelRatio, 12*devicePixelRatio);
+  series.forEach((s, si) => {
+    ctx.strokeStyle = colors[si]; ctx.lineWidth = 1.5*devicePixelRatio; ctx.beginPath();
+    s.forEach((v,i) => { const x = w*i/(MAXPTS-1), y = h - (v/max)*h*0.92 - 4; i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+    ctx.stroke();
+  });
+}
+
+function drawBars(id, stages) {
+  const cv = document.getElementById(id), ctx = cv.getContext('2d');
+  const w = cv.width = cv.clientWidth * devicePixelRatio, h = cv.height = 160 * devicePixelRatio;
+  ctx.clearRect(0,0,w,h);
+  let max = 1; for (const s of stages) max = Math.max(max, s.p99);
+  const bw = w / (stages.length * 1.5);
+  stages.forEach((s, i) => {
+    const x = (i + 0.25) * (w/stages.length), bh = (s.p99/max) * h * 0.78;
+    ctx.fillStyle = '#388bfd'; ctx.fillRect(x, h - bh - 16*devicePixelRatio, bw, bh);
+    ctx.fillStyle = '#8b949e'; ctx.font = (9*devicePixelRatio)+'px monospace';
+    ctx.save(); ctx.translate(x + bw/2, h - 4*devicePixelRatio); ctx.textAlign='right';
+    ctx.fillText(s.stage, 0, 0); ctx.restore();
+  });
+  ctx.fillStyle = '#8b949e'; ctx.font = (10*devicePixelRatio)+'px monospace';
+  ctx.fillText('p99 max ' + fmt(max) + 'ns', 4*devicePixelRatio, 12*devicePixelRatio);
+}
+
+function statCard(k, v, cls) { return `<div class="stat"><div class="k">${k}</div><div class="v ${cls||''}">${v}</div></div>`; }
+
+async function tick() {
+  let snap;
+  try { snap = await (await fetch('/metrics.json', {cache:'no-store'})).json(); }
+  catch (e) { document.getElementById('status').innerHTML = '<span class="disconnected">● disconnected</span>'; return; }
+  document.getElementById('status').textContent = '● live';
+  document.getElementById('floor').textContent =
+    'measured timer resolution ≈ ' + snap.timer_resolution_ns + ' ns (stages below this are resolution-limited)';
+
+  const get = (arr, name) => (arr.find(s => s.stage === name) || {p50:0,p95:0,p99:0,max:0,count:0});
+  const iv = snap.interval;
+  const order = get(iv, 'tick_to_order'), sig = get(iv, 'tick_to_signal');
+
+  const pnlCls = snap.total_pnl < 0 ? 'neg' : 'pos';
+  document.getElementById('stats').innerHTML =
+    statCard('throughput', fmt(snap.throughput_pps)+'/s') +
+    statCard('ticks', fmt(snap.ticks)) +
+    statCard('orders', fmt(snap.orders)) +
+    statCard('rejects', fmt(snap.rejects)) +
+    statCard('ring drops', fmt(snap.drops)) +
+    statCard('total pnl', snap.total_pnl.toFixed(2), pnlCls) +
+    statCard('tick→order p99', fmt(order.p99)+' ns') +
+    statCard('tick→signal p50', fmt(sig.p50)+' ns');
+
+  const tb = document.querySelector('#stageTable tbody');
+  tb.innerHTML = iv.map(s =>
+    `<tr><td class="stage">${s.stage}</td><td>${fmt(s.p50)}</td><td>${fmt(s.p95)}</td><td>${fmt(s.p99)}</td><td>${fmt(s.max)}</td><td>${fmt(s.count)}</td></tr>`
+  ).join('');
+
+  pushCap(hist.order.p50, order.p50); pushCap(hist.order.p95, order.p95); pushCap(hist.order.p99, order.p99);
+  pushCap(hist.signal.p50, sig.p50); pushCap(hist.signal.p95, sig.p95); pushCap(hist.signal.p99, sig.p99);
+  pushCap(hist.tput, snap.throughput_pps);
+  lastBars = iv;
+
+  drawLines('c_order', [hist.order.p50, hist.order.p95, hist.order.p99], ['#3fb950','#58a6ff','#f85149']);
+  drawLines('c_signal', [hist.signal.p50, hist.signal.p95, hist.signal.p99], ['#3fb950','#58a6ff','#f85149']);
+  drawLines('c_tput', [hist.tput], ['#d29922']);
+  drawBars('c_bars', iv);
+}
+
+setInterval(tick, 1000);
+tick();
+</script>
+</body>
+</html>

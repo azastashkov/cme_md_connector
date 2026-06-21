@@ -8,10 +8,12 @@
 
 pub mod gateway;
 pub mod loadgen;
+pub mod metrics;
 pub mod mdp3;
 pub mod orderbook;
 pub mod risk;
 pub mod signal;
+pub mod timing;
 
 /// CME `SecurityID` — identifies one instrument's book.
 pub type InstrumentId = i32;
