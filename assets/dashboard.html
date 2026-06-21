@@ -134,25 +134,30 @@ function drawBars(id, stages) {
 // A signed series (PnL, net position) needs a zero baseline and per-segment
 // green/red coloring rather than the unsigned drawLines scaling. `posColor`/
 // `negColor` paint above/below zero; `digits` controls the current-value label.
+// The y-axis autoscales to the window's actual range so variation stays visible
+// even when the series drifts far from zero.
 function drawSigned(id, series, posColor, negColor, digits) {
   const cv = document.getElementById(id), ctx = cv.getContext('2d');
   const w = cv.width = cv.clientWidth * devicePixelRatio, h = cv.height = 160 * devicePixelRatio;
   ctx.clearRect(0,0,w,h);
-  // Range always includes zero so the baseline is on screen.
-  let lo = 0, hi = 0;
+  // Autoscale: fit the y-axis to the window's actual min..max.
+  let lo = Infinity, hi = -Infinity;
   for (const v of series) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
-  if (hi === lo) hi = lo + 1; // avoid a zero-height range
+  if (!isFinite(lo)) { lo = 0; hi = 1; }   // empty series
+  if (hi === lo) { lo -= 1; hi += 1; }     // flat series: center it, avoid /0
   const pad = 8 * devicePixelRatio;
   const yOf = v => h - pad - ((v - lo) / (hi - lo)) * (h - 2 * pad);
   // background gridlines
   ctx.strokeStyle = '#21262d'; ctx.lineWidth = 1;
   for (let g=0; g<=4; g++){ const y=h*g/4; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
-  // dashed zero baseline
-  const yZero = yOf(0);
-  ctx.strokeStyle = '#8b949e'; ctx.lineWidth = 1*devicePixelRatio;
-  ctx.setLineDash([4*devicePixelRatio, 4*devicePixelRatio]);
-  ctx.beginPath(); ctx.moveTo(0, yZero); ctx.lineTo(w, yZero); ctx.stroke();
-  ctx.setLineDash([]);
+  // dashed zero baseline — only when zero falls within the autoscaled range
+  if (lo <= 0 && hi >= 0) {
+    const yZero = yOf(0);
+    ctx.strokeStyle = '#8b949e'; ctx.lineWidth = 1*devicePixelRatio;
+    ctx.setLineDash([4*devicePixelRatio, 4*devicePixelRatio]);
+    ctx.beginPath(); ctx.moveTo(0, yZero); ctx.lineTo(w, yZero); ctx.stroke();
+    ctx.setLineDash([]);
+  }
   // line, colored per segment by the sign of its endpoint
   ctx.lineWidth = 1.5*devicePixelRatio;
   for (let i=1; i<series.length; i++) {
