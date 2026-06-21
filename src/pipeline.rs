@@ -173,6 +173,9 @@ impl Pipeline {
                         tick_to_order_ns = Some(self.timer.delta_ns(t0, t5));
                         outcome.order = true;
                         self.metrics.inc_order();
+                        // Position only changes on a fill; publish the new gauge
+                        // off the measured hot path (after t5 is stamped).
+                        self.metrics.set_position(self.risk.net_position_total());
                     }
                     Err(_reason) => {
                         outcome.reject = true;
