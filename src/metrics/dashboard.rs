@@ -124,6 +124,17 @@ mod tests {
     }
 
     #[test]
+    fn index_html_includes_pnl_chart() {
+        // Guards against the embedded asset drifting away from the PnL graph
+        // (there is no JS test harness, so assert the canvas is present).
+        assert!(
+            INDEX_HTML.contains("id=\"c_pnl\""),
+            "dashboard.html is missing the PnL chart canvas"
+        );
+        assert!(INDEX_HTML.contains("drawPnl"), "dashboard.html is missing drawPnl");
+    }
+
+    #[test]
     fn json_is_balanced_braces() {
         let json = to_json(&sample_snapshot());
         let open = json.chars().filter(|&c| c == '{').count();
