@@ -6,9 +6,12 @@
 //!
 //! See `docs`/README for the architecture and the macOS measurement caveats.
 
+pub mod gateway;
 pub mod loadgen;
 pub mod mdp3;
 pub mod orderbook;
+pub mod risk;
+pub mod signal;
 
 /// CME `SecurityID` — identifies one instrument's book.
 pub type InstrumentId = i32;
@@ -27,6 +30,33 @@ impl Side {
         match self {
             Side::Bid => Side::Offer,
             Side::Offer => Side::Bid,
+        }
+    }
+}
+
+/// Buy/sell direction of an order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum OrderSide {
+    Buy,
+    Sell,
+}
+
+impl OrderSide {
+    /// The opposite direction (used to flatten a position).
+    #[inline]
+    pub fn opposite(self) -> OrderSide {
+        match self {
+            OrderSide::Buy => OrderSide::Sell,
+            OrderSide::Sell => OrderSide::Buy,
+        }
+    }
+
+    /// Signed position delta per filled contract (+1 buy, -1 sell).
+    #[inline]
+    pub fn sign(self) -> i64 {
+        match self {
+            OrderSide::Buy => 1,
+            OrderSide::Sell => -1,
         }
     }
 }
