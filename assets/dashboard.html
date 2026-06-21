@@ -107,8 +107,13 @@ function drawBars(id, stages) {
   const bw = w / (stages.length * 1.5);
   stages.forEach((s, i) => {
     const x = (i + 0.25) * (w/stages.length), bh = (s.p99/max) * h * 0.78;
-    ctx.fillStyle = '#388bfd'; ctx.fillRect(x, h - bh - 16*devicePixelRatio, bw, bh);
-    ctx.fillStyle = '#8b949e'; ctx.font = (9*devicePixelRatio)+'px monospace';
+    const barTop = h - bh - 16*devicePixelRatio;
+    ctx.fillStyle = '#388bfd'; ctx.fillRect(x, barTop, bw, bh);
+    // p99 value (ns) above the bar
+    ctx.fillStyle = '#e6edf3'; ctx.font = (9*devicePixelRatio)+'px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(fmt(s.p99), x + bw/2, Math.max(9*devicePixelRatio, barTop - 4*devicePixelRatio));
+    // stage label at the bottom
+    ctx.fillStyle = '#8b949e';
     ctx.save(); ctx.translate(x + bw/2, h - 4*devicePixelRatio); ctx.textAlign='right';
     ctx.fillText(s.stage, 0, 0); ctx.restore();
   });
