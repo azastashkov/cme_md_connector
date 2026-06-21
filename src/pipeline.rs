@@ -142,12 +142,14 @@ impl Pipeline {
 
         if let Some(signal) = sig {
             outcome.signal = true;
-            // Price to cross the spread so the order is marketable.
-            let cross_px = match signal.side {
-                OrderSide::Buy => bbo.offer_px_raw,
-                OrderSide::Sell => bbo.bid_px_raw,
-            };
-            if let (Some(px_raw), Some(mid)) = (cross_px, bbo.mid()) {
+            // Post at the mid (midpoint peg). The mock gateway fills a mid order
+            // at its limit (the mid) rather than at the touch, so a naive taker
+            // does not pay the spread on every round trip and therefore does not
+            // structurally bleed PnL into the daily-loss kill-switch. The
+            // kill-switch then trips only on genuine drawdowns, keeping order flow
+            // (and the tick-to-order latency stream) alive throughout a run.
+            if let Some(mid) = bbo.mid() {
+                let px_raw = crate::f64_to_price9(mid);
                 let req = OrderRequest {
                     instrument: inst,
                     side: signal.side,
@@ -236,11 +238,11 @@ mod tests {
 
     #[test]
     fn risk_rejections_block_orders() {
-        // A zero-width price band rejects every (spread-crossing) order.
+        // A zero position limit rejects every order (projected |1| > 0).
         let cfg = PipelineConfig {
             instruments: vec![1],
             risk: RiskConfig {
-                price_band_ticks: 0,
+                position_limit: 0,
                 ..RiskConfig::default()
             },
             ..Default::default()

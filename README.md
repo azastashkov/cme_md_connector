@@ -101,14 +101,22 @@ a locally-supplied capture with `--pcap` (it is parsed via `pcap-parser` +
 
 ## Strategy & risk economics
 
-The signal is a naive **liquidity-taking** mean-reversion: it crosses the spread to
-guarantee a fill. Crossing pays the spread on every round-trip, so with default
-parameters the strategy bleeds slowly and the **Daily Loss Limit kill-switch
-eventually engages** — which is exactly Risk Check 3 doing its job, and is visible
-as a wave of rejections on the dashboard once the cap is hit. Tune
-`--z-entry/--z-exit/--sigma/--theta/--loss-limit/--pos-limit/--price-band-ticks` to
-explore different regimes (e.g. lower `--loss-limit` to trip the kill-switch
-quickly, or `--price-band-ticks 0` to reject every order on the fat-finger check).
+The signal posts at the **midpoint** (a midpoint peg) and the mock gateway fills it
+there, so the strategy captures the mean-reversion edge of the synthetic series
+**without paying the spread on every round trip**. PnL therefore stays bounded and
+**orders keep flowing throughout a run** — the Daily Loss Limit kill-switch trips
+only on a genuine drawdown, not as a structural certainty. (An earlier taker
+variant crossed the spread and bled PnL until the kill-switch latched and halted
+all order flow after a few seconds; the midpoint peg fixes that.)
+
+All three pre-trade checks stay active and are covered by tests. To see a check
+fire on demand:
+
+- `--pos-limit 0` rejects every order (projected position exceeds the cap),
+- a low `--loss-limit` trips the daily-loss kill-switch once PnL draws down,
+- the price band rejects any order priced far from the market (fat-finger).
+
+Tune `--z-entry/--z-exit/--sigma/--theta` to explore different signal regimes.
 
 ## Module map
 
