@@ -1,0 +1,35 @@
+[package]
+name = "cme_md_connector"
+version = "0.1.0"
+edition = "2021"
+description = "HFT CME (MDP 3.0 / SBE) market-data connector + load test with a built-in latency dashboard"
+license = "MIT OR Apache-2.0"
+
+[lib]
+name = "cme_md_connector"
+path = "src/lib.rs"
+
+[[bin]]
+name = "connector"
+path = "src/main.rs"
+
+[dependencies]
+zerocopy = { version = "0.8", features = ["derive"] }
+
+[features]
+default = []
+# Linux-x86-only fast path: TSC (rdtscp/minstant) timing, hard core pinning, huge pages.
+linux-x86-fastpath = []
+# Real thread-to-core pinning (Linux); a logged no-op on macOS/Apple Silicon.
+pin-threads = []
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+debug = false
+
+# The test profile keeps unwinding (panic=abort only applies to release/bin).
+[profile.test]
+opt-level = 1
