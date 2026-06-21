@@ -6,12 +6,15 @@
 //!
 //! See `docs`/README for the architecture and the macOS measurement caveats.
 
+pub mod affinity;
 pub mod gateway;
 pub mod loadgen;
 pub mod metrics;
 pub mod mdp3;
 pub mod orderbook;
+pub mod pipeline;
 pub mod risk;
+pub mod runner;
 pub mod signal;
 pub mod timing;
 
