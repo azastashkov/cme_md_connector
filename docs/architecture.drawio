@@ -1,111 +1,134 @@
-<mxfile host="app.diagrams.net" version="24.0.0" type="device">
+<mxfile host="Electron">
   <diagram id="cme-md-connector-arch" name="Architecture">
-    <mxGraphModel dx="1280" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="900" math="0" shadow="0">
+    <mxGraphModel dx="2054" dy="1074" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="900" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-
-        <!-- Title -->
-        <mxCell id="title" value="cme_md_connector — CME MDP 3.0 / SBE market-data connector + load test (HFT-style inline pipeline)" style="text;html=1;fontSize=16;fontStyle=1;align=left;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="40" y="20" width="1100" height="40" as="geometry" />
+        <mxCell id="title" parent="1" style="text;html=1;fontSize=16;fontStyle=1;align=left;verticalAlign=middle;" value="cme_md_connector — CME MDP 3.0 / SBE market-data connector + load test (HFT-style inline pipeline)" vertex="1">
+          <mxGeometry height="40" width="1100" x="40" y="20" as="geometry" />
         </mxCell>
-
-        <!-- ===================== Generator thread lane ===================== -->
-        <mxCell id="laneGen" value="Generator thread  (open-loop, paced)" style="swimlane;startSize=30;horizontal=1;rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="40" y="90" width="240" height="560" as="geometry" />
+        <mxCell id="laneGen" parent="1" style="swimlane;startSize=30;horizontal=1;rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;verticalAlign=top;" value="Generator thread  (open-loop, paced)" vertex="1">
+          <mxGeometry height="560" width="240" x="40" y="90" as="geometry" />
         </mxCell>
-        <mxCell id="ou" value="OU price model&#10;(mean-reverting series)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="laneGen">
-          <mxGeometry x="30" y="60" width="180" height="50" as="geometry" />
+        <mxCell id="ou" parent="laneGen" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" value="OU price model&#xa;(mean-reverting series)" vertex="1">
+          <mxGeometry height="50" width="180" x="30" y="60" as="geometry" />
         </mxCell>
-        <mxCell id="encode" value="encode MDP3 / SBE&#10;(same codec the decoder validates)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="laneGen">
-          <mxGeometry x="30" y="150" width="180" height="56" as="geometry" />
+        <mxCell id="encode" parent="laneGen" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" value="encode MDP3 / SBE&#xa;(same codec the decoder validates)" vertex="1">
+          <mxGeometry height="56" width="180" x="30" y="150" as="geometry" />
         </mxCell>
-        <mxCell id="pcap" value="pcap replay&#10;(--pcap, alt. source)" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#f5f5f5;strokeColor=#999999;fontColor=#333333;" vertex="1" parent="laneGen">
-          <mxGeometry x="30" y="380" width="180" height="56" as="geometry" />
+        <mxCell id="pcap" parent="laneGen" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#f5f5f5;strokeColor=#999999;fontColor=#333333;" value="pcap replay&#xa;(--pcap, alt. source)" vertex="1">
+          <mxGeometry height="56" width="180" x="30" y="380" as="geometry" />
         </mxCell>
-        <mxCell id="genNote" value="src/loadgen" style="text;html=1;fontSize=10;fontColor=#6c8ebf;align=left;" vertex="1" parent="laneGen">
-          <mxGeometry x="30" y="450" width="180" height="20" as="geometry" />
+        <mxCell id="genNote" parent="laneGen" style="text;html=1;fontSize=10;fontColor=#6c8ebf;align=left;" value="src/loadgen" vertex="1">
+          <mxGeometry height="20" width="180" x="30" y="450" as="geometry" />
         </mxCell>
-
-        <!-- ===================== Ring buffer ===================== -->
-        <mxCell id="ring" value="rtrb SPSC ring&#10;(lock-free hand-off)&#10;hop is BEFORE t0" style="shape=cylinder3;boundedLbl=1;backgroundOutline=1;rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="320" y="300" width="120" height="90" as="geometry" />
+        <mxCell id="ring" parent="1" style="shape=cylinder3;boundedLbl=1;backgroundOutline=1;rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" value="rtrb SPSC ring&#xa;(lock-free hand-off)&#xa;hop is BEFORE t0" vertex="1">
+          <mxGeometry height="90" width="120" x="320" y="300" as="geometry" />
         </mxCell>
-
-        <!-- ===================== Hot consumer thread lane ===================== -->
-        <mxCell id="laneHot" value="Hot consumer thread  (inline · zero-copy · allocation-free · busy-spin)" style="swimlane;startSize=30;horizontal=1;rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="490" y="90" width="360" height="700" as="geometry" />
+        <mxCell id="laneHot" parent="1" style="swimlane;startSize=30;horizontal=1;rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;verticalAlign=top;" value="Hot consumer thread  (inline · zero-copy · allocation-free · busy-spin)" vertex="1">
+          <mxGeometry height="700" width="410" x="490" y="90" as="geometry" />
         </mxCell>
-        <mxCell id="s_pop" value="pop · stamp t0&#10;(ingest hand-off excluded)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="laneHot">
-          <mxGeometry x="40" y="50" width="200" height="48" as="geometry" />
+        <mxCell id="s_pop" parent="laneHot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" value="pop · stamp t0&#xa;(ingest hand-off excluded)" vertex="1">
+          <mxGeometry height="48" width="200" x="100" y="51" as="geometry" />
         </mxCell>
-        <mxCell id="decode" value="decode  →  t1&#10;header + SBE framing + MDIncrementalRefreshBook" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="laneHot">
-          <mxGeometry x="40" y="125" width="200" height="56" as="geometry" />
+        <mxCell id="decode" parent="laneHot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" value="decode  →  t1&#xa;header + SBE framing + MDIncrementalRefreshBook" vertex="1">
+          <mxGeometry height="56" width="200" x="100" y="126" as="geometry" />
         </mxCell>
-        <mxCell id="book" value="book → BBO  →  t2&#10;depth ladder + RptSeq gap detect" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="laneHot">
-          <mxGeometry x="40" y="205" width="200" height="56" as="geometry" />
+        <mxCell id="book" parent="laneHot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" value="book → BBO  →  t2&#xa;depth ladder + RptSeq gap detect" vertex="1">
+          <mxGeometry height="56" width="200" x="100" y="206" as="geometry" />
         </mxCell>
-        <mxCell id="signal" value="signal  →  t3&#10;EWMA z-score mean-reversion (O(1)/tick)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="laneHot">
-          <mxGeometry x="40" y="285" width="200" height="56" as="geometry" />
+        <mxCell id="signal" parent="laneHot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" value="signal  →  t3&#xa;EWMA z-score mean-reversion (O(1)/tick)" vertex="1">
+          <mxGeometry height="56" width="200" x="100" y="286" as="geometry" />
         </mxCell>
-        <mxCell id="risk" value="risk  →  t4&#10;Price band → Position limit → Daily loss kill-switch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="laneHot">
-          <mxGeometry x="40" y="365" width="200" height="56" as="geometry" />
+        <mxCell id="risk" parent="laneHot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" value="risk  →  t4&#xa;Price band → Position limit → Daily loss kill-switch" vertex="1">
+          <mxGeometry height="56" width="200" x="100" y="366" as="geometry" />
         </mxCell>
-        <mxCell id="gateway" value="gateway  →  t5&#10;assign OrderID · ack NEW · midpoint fill" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="laneHot">
-          <mxGeometry x="40" y="445" width="200" height="56" as="geometry" />
+        <mxCell id="gateway" parent="laneHot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" value="gateway  →  t5&#xa;assign OrderID · ack NEW · midpoint fill" vertex="1">
+          <mxGeometry height="56" width="200" x="100" y="446" as="geometry" />
         </mxCell>
-        <mxCell id="posbook" value="position / PnL book&#10;(fills feed risk: net pos + realized/unrealized PnL)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="laneHot">
-          <mxGeometry x="40" y="525" width="200" height="56" as="geometry" />
+        <mxCell id="posbook" parent="laneHot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="position / PnL book&#xa;(fills feed risk: net pos + realized/unrealized PnL)" vertex="1">
+          <mxGeometry height="56" width="200" x="100" y="526" as="geometry" />
         </mxCell>
-        <mxCell id="record" value="record HdrHistograms&#10;per-stage + tick→signal + tick→order&#10;(record_correct vs coordinated omission)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="laneHot">
-          <mxGeometry x="40" y="605" width="200" height="64" as="geometry" />
+        <mxCell id="record" parent="laneHot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" value="record HdrHistograms&#xa;per-stage + tick→signal + tick→order&#xa;(record_correct vs coordinated omission)" vertex="1">
+          <mxGeometry height="64" width="200" x="100" y="606" as="geometry" />
         </mxCell>
-
-        <!-- ===================== Reporter + Dashboard lane ===================== -->
-        <mxCell id="laneOut" value="Reporter &amp; Dashboard threads" style="swimlane;startSize=30;horizontal=1;rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="910" y="90" width="320" height="700" as="geometry" />
+        <mxCell id="e_pop_dec" edge="1" parent="laneHot" source="s_pop" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;" target="decode">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="reporter" value="reporter (~1s)&#10;snapshot → p50/p95/p99 + totals" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="laneOut">
-          <mxGeometry x="50" y="520" width="220" height="56" as="geometry" />
+        <mxCell id="e_dec_book" edge="1" parent="laneHot" source="decode" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;" target="book">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="arcswap" value="ArcSwap&#10;(latest published snapshot)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="laneOut">
-          <mxGeometry x="50" y="360" width="220" height="50" as="geometry" />
+        <mxCell id="e_book_sig" edge="1" parent="laneHot" source="book" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;" target="signal">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="dashboard" value="dashboard thread&#10;tiny_http serves UI + /metrics.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="laneOut">
-          <mxGeometry x="50" y="210" width="220" height="56" as="geometry" />
+        <mxCell id="e_sig_risk" edge="1" parent="laneHot" source="signal" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;fontSize=10;" target="risk" value="signal?">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="browser" value="browser UI&#10;live charts: PnL · net position · tick→order · tick→signal · throughput · per-stage p99" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="laneOut">
-          <mxGeometry x="50" y="60" width="220" height="80" as="geometry" />
+        <mxCell id="e_risk_gw" edge="1" parent="laneHot" source="risk" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;fontSize=10;" target="gateway" value="pass?">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <!-- ===================== Edges ===================== -->
-        <mxCell id="e_ou_enc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6c8ebf;" edge="1" parent="1" source="ou" target="encode"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_enc_ring" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6c8ebf;" edge="1" parent="1" source="encode" target="ring"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_pcap_ring" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="pcap" target="ring"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_ring_pop" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#9673a6;strokeWidth=2;" edge="1" parent="1" source="ring" target="s_pop"><mxGeometry relative="1" as="geometry" /></mxCell>
-
-        <mxCell id="e_pop_dec" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="s_pop" target="decode"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_dec_book" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="decode" target="book"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_book_sig" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="book" target="signal"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_sig_risk" value="signal?" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;fontSize=10;" edge="1" parent="1" source="signal" target="risk"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_risk_gw" value="pass?" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;fontSize=10;" edge="1" parent="1" source="risk" target="gateway"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_gw_pos" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d6b656;" edge="1" parent="1" source="gateway" target="posbook"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_pos_rec" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="posbook" target="record"><mxGeometry relative="1" as="geometry" /></mxCell>
-
-        <!-- feedback: position/PnL informs the risk checks -->
-        <mxCell id="e_pos_risk" value="net pos / PnL" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#d6b656;fontSize=10;exitX=0;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="posbook" target="risk"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="500" y="553" /><mxPoint x="500" y="393" /></Array></mxGeometry></mxCell>
-
-        <!-- record -> reporter (cross-thread aggregation) -->
-        <mxCell id="e_rec_rep" value="aggregate off hot thread" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82b366;fontSize=10;" edge="1" parent="1" source="record" target="reporter"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_rep_arc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82b366;" edge="1" parent="1" source="reporter" target="arcswap"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_arc_dash" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82b366;" edge="1" parent="1" source="arcswap" target="dashboard"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_dash_br" value="HTTP /metrics.json (1s poll)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82b366;fontSize=10;" edge="1" parent="1" source="dashboard" target="browser"><mxGeometry relative="1" as="geometry" /></mxCell>
-
-        <!-- ===================== Legend ===================== -->
-        <mxCell id="legend" value="Timing: t0 ring-pop · t1 decode · t2 book · t3 signal · t4 risk · t5 gateway.&#10;Totals: tick→signal (every packet), tick→order (full tick-to-trade).&#10;Modules: loadgen · mdp3 · orderbook · signal · risk · gateway · timing · metrics · pipeline · runner.&#10;Linux-x86 fast path (rdtscp pinning, huge pages) is feature-gated and off by default." style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
-          <mxGeometry x="40" y="680" width="430" height="110" as="geometry" />
+        <mxCell id="e_gw_pos" edge="1" parent="laneHot" source="gateway" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d6b656;" target="posbook">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
+        <mxCell id="e_pos_rec" edge="1" parent="laneHot" source="posbook" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d79b00;" target="record">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pos_risk" edge="1" parent="laneHot" source="posbook" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#d6b656;fontSize=10;exitX=0;exitY=0.5;entryX=0;entryY=0.5;" target="risk" value="net pos / PnL">
+          <mxGeometry relative="1" x="-0.03" y="20" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="70" y="464" />
+              <mxPoint x="70" y="304" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="laneOut" parent="1" style="swimlane;startSize=30;horizontal=1;rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;verticalAlign=top;" value="Reporter &amp; Dashboard threads" vertex="1">
+          <mxGeometry height="700" width="320" x="1040" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="reporter" parent="laneOut" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" value="reporter (~1s)&#xa;snapshot → p50/p95/p99 + totals" vertex="1">
+          <mxGeometry height="56" width="220" x="50" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="arcswap" parent="laneOut" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="ArcSwap&#xa;(latest published snapshot)" vertex="1">
+          <mxGeometry height="50" width="220" x="50" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="dashboard" parent="laneOut" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" value="dashboard thread&#xa;tiny_http serves UI + /metrics.json" vertex="1">
+          <mxGeometry height="56" width="220" x="50" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="browser" parent="laneOut" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" value="browser UI&#xa;live charts: PnL · net position · tick→order · tick→signal · throughput · per-stage p99" vertex="1">
+          <mxGeometry height="80" width="220" x="50" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ou_enc" edge="1" parent="1" source="ou" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6c8ebf;" target="encode">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_enc_ring" edge="1" parent="1" source="encode" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6c8ebf;" target="ring">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pcap_ring" edge="1" parent="1" source="pcap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#999999;" target="ring">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ring_pop" edge="1" parent="1" source="ring" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#9673a6;strokeWidth=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s_pop">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="470" y="345" />
+              <mxPoint x="470" y="164" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_rec_rep" edge="1" parent="1" source="record" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82b366;fontSize=10;" target="reporter" value="aggregate off hot thread">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_rep_arc" edge="1" parent="1" source="reporter" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82b366;" target="arcswap">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_arc_dash" edge="1" parent="1" source="arcswap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82b366;" target="dashboard">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_dash_br" edge="1" parent="1" source="dashboard" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82b366;fontSize=10;" target="browser" value="HTTP /metrics.json (1s poll)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;spacingLeft=8;spacingTop=6;" value="Timing: t0 ring-pop · t1 decode · t2 book · t3 signal · t4 risk · t5 gateway.&#xa;Totals: tick→signal (every packet), tick→order (full tick-to-trade).&#xa;Modules: loadgen · mdp3 · orderbook · signal · risk · gateway · timing · metrics · pipeline · runner.&#xa;Linux-x86 fast path (rdtscp pinning, huge pages) is feature-gated and off by default." vertex="1">
+          <mxGeometry height="110" width="430" x="40" y="680" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
